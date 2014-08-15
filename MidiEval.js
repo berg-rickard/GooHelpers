@@ -52,9 +52,11 @@
 			});
 		},
 		destroy: function() {
-			removeListeners();
-			channels = [];
-			MidiAccess = null;
+			if (MidiAccess) {
+				removeListeners();
+				channels = [];
+				MidiAccess = null;
+			}
 		},
 		// Midi channels are 1 - 16
 		getChannel: function(idx) {
