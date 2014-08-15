@@ -51,32 +51,53 @@
 				onError(error);
 			});
 		},
+		destroy: function() {
+			removeListeners();
+			channels = [];
+			MidiAccess = null;
+		},
 		// Midi channels are 1 - 16
 		getChannel: function(idx) {
 			return channels[idx - 1];
+		},
+		parseNote: function(noteIdx) {
+			return {
+				octave: Math.floor(noteIdx / 12),
+				note: noteMap[(noteIdx % 12 + 12) % 12],
+				frequency: 440 * Math.exp((noteIdx - 9) / 12 * Math.LN2),
+			};
 		}
 	};
 	global.MidiEval = MidiEval;
+
+
+	function onMidi(message) {
+		var data = getData(message.data);
+		if (data.type === 'error') {
+			console.error('Error', data.message);
+			return;
+		}
+
+		var channel = channels[data.channel];
+		if (channel) {
+			channel._emit(data);
+		}
+	}
 
 	function addListeners() {
 		// Due to some chrome bug, we need to wait a while to add the listeners
 		setTimeout(function() {
 			var inputs = MidiAccess.inputs();
 			for (var i = 0; i < inputs.length; i++) {
-				inputs[i].addEventListener('midimessage', function(message) {
-					var data = getData(message.data);
-					if (data.type === 'error') {
-						console.error('Error', data.message);
-						return;
-					}
-
-					var channel = channels[data.channel];
-					if (channel) {
-						channel._emit(data);
-					}
-				});
+				inputs[i].addEventListener('midimessage', onMidi);
 			}
 		}, 50);
+	}
+	function removeListeners() {
+		var inputs = MidiAccess.inputs();
+		for (var i = 0; i < inputs.length; i++) {
+			inputs[i].removeEventListener('midimessage', onMidi);
+		}
 	}
 
 	// Doing some Uint8 parsing to get human readable data
@@ -148,6 +169,20 @@
 		64: 'Sustain'	
 	};
 
+	var noteMap = [
+		'C',
+		'C#',
+		'D',
+		'Eb',
+		'E',
+		'F',
+		'F#',
+		'G',
+		'Ab',
+		'A',
+		'Bb',
+		'B'
+	];
 
 	/**
 	 * A channel class, really just a simple event target implementation
