@@ -150,6 +150,48 @@
 			data: data
 		};
 	}
+	
+	function setData(data, channelIdx) {
+		// Status byte
+		var stat = 1 << 7;
+		stat |= channelIdx
+
+		// Type of MIDI call
+		var typeMask = typeMap.indexOf(data.type) << 4;
+		stat |= typeMask;
+		
+		var bytes = [stat];
+		switch (data.type) {
+			case 'noteOff':
+			case 'noteOn':
+			case 'afterTouch':
+				if (typeof(data.note) === 'number') {
+					var note = data.note + 60;
+				} else {
+					var m = data.note.match(/([A-G](#|b)?)(-?\d*)/);
+					if (m && !isNaN(m[3])) {
+						var note = noteMap.indexOf(m[1]) + m[3] * 12 + 60;
+					} else {
+						var note = 0;
+					}
+				}
+				bytes.push(note, data.value);
+				break;
+			case 'controllerChange':
+				bytes.push(data.controllerIdx, data.value);
+				break;
+			case 'programChange':
+				bytes.push(data.program);
+				break;
+			case 'channelPressure':
+				bytes.push(data.value);
+			case 'pitchBend':
+				var firstVal = data.value >> 7;
+				var secondVal = data.value & 127;
+				bytes.push(firstVal, secondVal);
+		}
+		return bytes;
+	}
 
 	// Some of the events taken from the MIDI spec. Should probably add some more
 	var typeMap = [
@@ -204,6 +246,15 @@
 			}
 		} else {
 			delete this._listeners[key];
+		}
+	};
+	Channel.prototype.send = function (data, delay) {
+		if (!MidiAccess) { return; }
+		var timeStamp = (delay || 0) + performance.now();
+		var bytes = setData(data, channels.indexOf(this));
+		var outputs = MidiAccess.outputs();
+		for (var i = 0; i < outputs.length; i++) {
+			outputs[i].send(bytes, timeStamp);
 		}
 	};
 	Channel.prototype._emit = function (data) {
