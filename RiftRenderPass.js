@@ -52,12 +52,26 @@
 		];
 		this.fov = config.FOV;
 		this.eyeOffset = config.interpupillaryDistance * this.boost;
+
+
+		var r = -1.0 - (4 * (config.hScreenSize/4 - config.lensSeparationDistance/2) / config.hScreenSize);
+		var distScale = (config.distortionK[0] +
+			config.distortionK[1] * Math.pow(r,2) +
+			config.distortionK[2] * Math.pow(r,4) +
+			config.distortionK[3] * Math.pow(r,6));
+		uniforms.scale = [
+			1 / distScale,
+			1 / distScale
+		]
 	}
 	
 
 
 	RiftRenderPass.prototype.updateSize = function(size, renderer) {
-		this.material.uniforms.aspect = size.width * 0.5 / size.height;
+		this.material.uniforms.scaleIn = [
+			size.width * 0.5 / size.height,
+			1
+		];
 	};
 
 	RiftRenderPass.prototype.render = function (
@@ -148,20 +162,18 @@
 			'uniform vec2 lensCenterOffset;',
 			'uniform vec4 distortion;',
 			'uniform vec4 aberration;',
-			'uniform float aspect;',
 			
 			'varying vec2 vUv;',
 
 			'vec2 distort(vec2 texCoords, vec2 ab) {',
-				'vec2 lensOffset = vUv.x > 0.5 ? lensCenterOffset: -lensCenterOffset;',
-				'vec2 lensCoords = ((texCoords * 2.0 - 1.0) - lensOffset) * scaleIn;',
-				'lensCoords.x *= aspect;',
+				// 'vec2 lensOffset = vUv.x > 0.5 ? lensCenterOffset: -lensCenterOffset;',
+				'vec2 lensCoords = ((texCoords * 2.0 - 1.0) - lensCenterOffset) * scaleIn;',
 
 				'float rSq = dot(lensCoords, lensCoords);',
 				'vec4 r = vec4(1.0, rSq, rSq*rSq, rSq*rSq*rSq);',
 
 				'vec2 newCoords = lensCoords * dot(ab, r.xy) * dot(distortion, r);',
-				'return ((newCoords * scale + lensOffset) + 1.0) / 2.0;',
+				'return ((newCoords * scale + lensCenterOffset) + 1.0) / 2.0;',
 			'}',
 
 			'void main() {',
