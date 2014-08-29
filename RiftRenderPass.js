@@ -10,8 +10,8 @@
 		this.clear = true;
 		this.enabled = true;
 		this.needsSwap = true;
-		this.eyeOffset = 10;
-		this.aspect = 1;
+		this.eyeOffset = 0.4;
+		this.fov = 100;
 
 		// Create eye targets
 		var size = 1024;
@@ -22,6 +22,7 @@
 		// Create composit
 		this.material = new goo.Material('Composit material', riftShader);
 		
+		this.material.uniforms.aspect = ctx.viewportWidth * 0.5 / ctx.viewportHeight
 		
 		this.renderable = {
 			meshData: goo.FullscreenUtil.quad,
@@ -34,15 +35,7 @@
 	}
 	
 	RiftRenderPass.prototype.setup = function(args) {
-		var screenWidth = 8 //cm;
-		var lensDistance = 4 // cm
-		var lensCenterOffset = lensDistance / screenWidth - 0.5 // screen units (full width is 1);
-		this.material.uniforms.lensCenterOffset = [lensCenterOffset, 0];
-		this.material.uniforms.aspect = 1;
-		this.material.uniforms.scale = args.scale;
-		this.material.uniforms.scaleIn = args.scaleIn
-		this.eyeOffset = lensDistance / 200 || 0.0;
-		this.boost = args.boost || 1;
+		this.boost = args.boost3D || 1;
 	};
 	RiftRenderPass.prototype.destroy = function (renderer) {
 		this.leftTarget.destroy(renderer.context);
@@ -127,6 +120,7 @@
 			rightTex: 'RIGHT_TEX',
 			lensCenterOffset: [0, 0],
 			distortion: [1, 0.22, 0.24, 0],
+			aberration: [0.996, -0.004, 1.014, 0],
 			aspect: 1,
 			scaleIn: [1,1],
 			scale: [0.8,0.8]
@@ -153,41 +147,50 @@
 			'uniform vec2 scale;',
 			'uniform vec2 lensCenterOffset;',
 			'uniform vec4 distortion;',
+			'uniform vec4 aberration;',
 			'uniform float aspect;',
 			
 			'varying vec2 vUv;',
 
-			'vec2 distort(vec2 texCoords, vec2 lensOffset) {',
+			'vec2 distort(vec2 texCoords, vec2 ab) {',
+				'vec2 lensOffset = vUv.x > 0.5 ? lensCenterOffset: -lensCenterOffset;',
 				'vec2 lensCoords = ((texCoords * 2.0 - 1.0) - lensOffset) * scaleIn;',
 				'lensCoords.x *= aspect;',
 
 				'float rSq = dot(lensCoords, lensCoords);',
 				'vec4 r = vec4(1.0, rSq, rSq*rSq, rSq*rSq*rSq);',
 
-				'vec2 newCoords = lensCoords * dot(distortion, r);',
+				'vec2 newCoords = lensCoords * dot(ab, r.xy) * dot(distortion, r);',
 				'return ((newCoords * scale + lensOffset) + 1.0) / 2.0;',
 			'}',
 
-
-			'void main(){',
-				'vec2 coords = vUv;',
-				'vec2 lensOffset = -lensCenterOffset;',
-				'coords.x *= 2.0;',
-				'if (vUv.x >= 0.5) {', // Right eye
-					'coords.x -= 1.0;',
-					'lensOffset = -lensOffset;',
+			'void main() {',
+				'vec2 coord = vUv;',
+				'if (vUv.x > 0.5) {', // Right eye
+					'coord.x = 1.0 - coord.x;',
 				'}',
-				'vec2 distortedCoords = distort(coords, lensOffset);',
-				'vec2 clamped = clamp(distortedCoords, vec2(0.0), vec2(1.0));',
-				'if (!all(equal(clamped, distortedCoords))) {',
-					'gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); return;',
-					'discard;',
+				'coord.x *= 2.0;',
+
+				'vec2 blue = distort(coord, aberration.zw);',
+				'if (!all(equal(clamp(blue, vec2(0.0), vec2(1.0)), blue))) {',
+					'gl_FragColor = vec4(1.0); return;',
+				'}',
+
+				'vec2 red = distort(coord, aberration.xy);',
+				'vec2 green = distort(coord, vec2(1.0, 0.0));',
+				'gl_FragColor.a = 1.0;',
+				'if (vUv.x > 0.5) {',
+					'red.x = 1.0 - red.x;',
+					'green.x = 1.0 - green.x;',
+					'blue.x = 1.0 - blue.x;',
+
+					'gl_FragColor.r = texture2D(rightTex, red).r;',
+					'gl_FragColor.g = texture2D(rightTex, green).g;',
+					'gl_FragColor.b = texture2D(rightTex, blue).b;',
 				'} else {',
-					'if (vUv.x >= 0.5) {', // Right eye
-						'gl_FragColor = texture2D(rightTex, distortedCoords);',
-					'} else {',
-						'gl_FragColor = texture2D(leftTex, distortedCoords);',
-					'}',
+					'gl_FragColor.r = texture2D(leftTex, red).r;',
+					'gl_FragColor.g = texture2D(leftTex, green).g;',
+					'gl_FragColor.b = texture2D(leftTex, blue).b;',
 				'}',
 			'}'
 		].join('\n')
