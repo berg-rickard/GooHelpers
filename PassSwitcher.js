@@ -31,11 +31,15 @@
 		switchBack: function(ctx, goo) {
 			var renderSystem = ctx.world.getSystem('RenderSystem');
 			if (originalComposer) {
+				originalComposer.destroy(ctx.world.gooRunner.renderer)
 				// If we created a post effect chain, remove it
 				goo.ArrayUtil.remove(renderSystem.composers, originalComposer);
 			} else {
 				// Otherwise, remove the post effect and put back the outpass
 				var composer = renderSystem.composers[0];
+				if (addedPass) {
+					addedPass.destroy(ctx.world.gooRunner.renderer)
+				}
 				goo.ArrayUtil.remove(composer.passes, addedPass);
 				composer.passes.unshift(originalPass);
 			}

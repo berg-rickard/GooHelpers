@@ -10,12 +10,13 @@
 		this.clear = true;
 		this.enabled = true;
 		this.needsSwap = true;
+		this.eyeOffset = 10;
+		this.aspect = 1;
 
 		// Create eye targets
-		this.updateSize({
-			width: ctx.viewportWidth,
-			height: ctx.viewportHeight
-		});
+		var size = 1024;
+		this.leftTarget = new this.goo.RenderTarget(size, size);
+		this.rightTarget = new this.goo.RenderTarget(size, size);
 		this.offsetVector = new goo.Vector3();
 		
 		// Create composit
@@ -36,19 +37,34 @@
 		var screenWidth = 8 //cm;
 		var lensDistance = 4 // cm
 		var lensCenterOffset = lensDistance / screenWidth - 0.5 // screen units (full width is 1);
-		console.log(lensCenterOffset);
 		this.material.uniforms.lensCenterOffset = [lensCenterOffset, 0];
 		this.material.uniforms.aspect = 1;
 		this.material.uniforms.scale = args.scale;
 		this.material.uniforms.scaleIn = args.scaleIn
 		this.eyeOffset = lensDistance / 200 || 0.0;
+		this.boost = args.boost || 1;
 	};
+	RiftRenderPass.prototype.destroy = function (renderer) {
+		this.leftTarget.destroy(renderer.context);
+		this.rightTarget.destroy(renderer.context);
+	}
+
+	RiftRenderPass.prototype.updateConfig = function (config) {
+		var uniforms = this.material.uniforms;
+		uniforms.distortion = config.distortionK;
+		uniforms.aberration = config.chromAbParameter;
+		uniforms.lensCenterOffset = [
+			config.lensSeparationDistance / config.hScreenSize - 0.5,
+			0
+		];
+		this.fov = config.FOV;
+		this.eyeOffset = config.interpupillaryDistance * this.boost;
+	}
 	
 
 
-	RiftRenderPass.prototype.updateSize = function(size) {
-		this.leftTarget = new this.goo.RenderTarget(size.width, size.height);
-		this.rightTarget = new this.goo.RenderTarget(size.width, size.height);
+	RiftRenderPass.prototype.updateSize = function(size, renderer) {
+		this.material.uniforms.aspect = size.width * 0.5 / size.height;
 	};
 
 	RiftRenderPass.prototype.render = function (
@@ -64,6 +80,7 @@
 		camera = camera || this.goo.Renderer.mainCamera;
 		if (!camera) { return; }
 		this.camera.copy(camera);
+		this.camera.setFrustumPerspective(this.fov, 1);
 		lights = lights || [];
 		var renderList = this.renderList;
 		
@@ -112,7 +129,7 @@
 			distortion: [1, 0.22, 0.24, 0],
 			aspect: 1,
 			scaleIn: [1,1],
-			scale: [1,1]
+			scale: [0.8,0.8]
 		},
 		vshader: [
 			'attribute vec3 vertexPosition;',
@@ -137,17 +154,18 @@
 			'uniform vec2 lensCenterOffset;',
 			'uniform vec4 distortion;',
 			'uniform float aspect;',
-			'uniform float fillScale;',
 			
 			'varying vec2 vUv;',
 
 			'vec2 distort(vec2 texCoords, vec2 lensOffset) {',
 				'vec2 lensCoords = ((texCoords * 2.0 - 1.0) - lensOffset) * scaleIn;',
+				'lensCoords.x *= aspect;',
+
 				'float rSq = dot(lensCoords, lensCoords);',
 				'vec4 r = vec4(1.0, rSq, rSq*rSq, rSq*rSq*rSq);',
+
 				'vec2 newCoords = lensCoords * dot(distortion, r);',
-				'newCoords.x *= 0.5;',
-				'return (lensOffset + newCoords * scale) * 0.5 + 0.5;',
+				'return ((newCoords * scale + lensOffset) + 1.0) / 2.0;',
 			'}',
 
 
@@ -155,24 +173,21 @@
 				'vec2 coords = vUv;',
 				'vec2 lensOffset = -lensCenterOffset;',
 				'coords.x *= 2.0;',
-				'if (vUv.x >= 0.5) {',
-					'// Right eye',
+				'if (vUv.x >= 0.5) {', // Right eye
 					'coords.x -= 1.0;',
 					'lensOffset = -lensOffset;',
 				'}',
 				'vec2 distortedCoords = distort(coords, lensOffset);',
 				'vec2 clamped = clamp(distortedCoords, vec2(0.0), vec2(1.0));',
-				// 'gl_FragColor = vec4(length(actualTexCoords)); return;',
 				'if (!all(equal(clamped, distortedCoords))) {',
-					'gl_FragColor = vec4(0, 0, 1, 1);',
+					'gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); return;',
+					'discard;',
 				'} else {',
-					'vec4 color = vec4(0.0);',
-					'if (vUv.x >= 0.5) { // Right eye',
-						'color = texture2D(rightTex, distortedCoords);',
+					'if (vUv.x >= 0.5) {', // Right eye
+						'gl_FragColor = texture2D(rightTex, distortedCoords);',
 					'} else {',
-						'color = texture2D(leftTex, distortedCoords);',
+						'gl_FragColor = texture2D(leftTex, distortedCoords);',
 					'}',
-					'gl_FragColor = color;',
 				'}',
 			'}'
 		].join('\n')
