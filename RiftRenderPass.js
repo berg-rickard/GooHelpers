@@ -173,7 +173,7 @@
 
 				'vec2 blue = distort(coord, aberration.zw);',
 				'if (!all(equal(clamp(blue, vec2(0.0), vec2(1.0)), blue))) {',
-					'gl_FragColor = vec4(1.0); return;',
+					'discard;',
 				'}',
 
 				'vec2 red = distort(coord, aberration.xy);',
