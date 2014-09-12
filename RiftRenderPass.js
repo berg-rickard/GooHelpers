@@ -13,16 +13,14 @@
 		this.eyeOffset = 0.4;
 		this.fov = 100;
 
-		// Create eye targets
-		var size = 1024;
-		this.leftTarget = new this.goo.RenderTarget(size, size);
-		this.rightTarget = new this.goo.RenderTarget(size, size);
-		this.offsetVector = new goo.Vector3();
 		
 		// Create composit
 		this.material = new goo.Material('Composit material', riftShader);
 		
-		this.material.uniforms.aspect = ctx.viewportWidth * 0.5 / ctx.viewportHeight
+		// Create eye targets
+		this.updateSize({ width: 16, height: 9});
+		this.offsetVector = new goo.Vector3();
+
 		
 		this.renderable = {
 			meshData: goo.FullscreenUtil.quad,
@@ -40,6 +38,8 @@
 	RiftRenderPass.prototype.destroy = function (renderer) {
 		this.leftTarget.destroy(renderer.context);
 		this.rightTarget.destroy(renderer.context);
+		this.leftTarget = null;
+		this.rightTarget = null;
 	}
 
 	RiftRenderPass.prototype.updateConfig = function (config) {
@@ -72,6 +72,11 @@
 			size.width * 0.5 / size.height,
 			1
 		];
+		if (!this.leftTarget) {
+			var size = 1024;
+			this.leftTarget = new this.goo.RenderTarget(size, size);
+			this.rightTarget = new this.goo.RenderTarget(size, size);
+		}
 	};
 
 	RiftRenderPass.prototype.render = function (
@@ -135,7 +140,6 @@
 			lensCenterOffset: [0, 0],
 			distortion: [1, 0.22, 0.24, 0],
 			aberration: [0.996, -0.004, 1.014, 0],
-			aspect: 1,
 			scaleIn: [1,1],
 			scale: [0.8,0.8]
 		},

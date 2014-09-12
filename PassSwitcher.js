@@ -37,9 +37,6 @@
 			} else {
 				// Otherwise, remove the post effect and put back the outpass
 				var composer = renderSystem.composers[0];
-				if (addedPass) {
-					addedPass.destroy(ctx.world.gooRunner.renderer)
-				}
 				goo.ArrayUtil.remove(composer.passes, addedPass);
 				composer.passes.unshift(originalPass);
 			}
