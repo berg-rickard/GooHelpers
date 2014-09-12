@@ -34,40 +34,11 @@
 		this.material.uniforms.screenOffset = args.screenDistance / 2 || 0.0;
 		this.material.uniforms.leftColor = args.leftColor || [1, 1, 0];
 		this.material.uniforms.rightColor = args.rightColor || [0, 0, 1];
-
-
-		var renderSystem = ctx.world.getSystem('RenderSystem');
-		var composer;
-		// Get or create composer
-		if (renderSystem.composers.length) {
-			composer = renderSystem.composers[0];
-			ctx.renderPass = composer.passes.shift();
-			this.renderToScreen = false;
-		} else {
-			composer = ctx.composer = new goo.Composer();
-			renderSystem.composers.push(ctx.composer);
-			this.renderToScreen = true;
-		}
-		// Add the post effect
-		composer.passes.unshift(this);
-		if (composer.size) {
-			this.updateSize(composer.size);
-			this.viewportSize = composer.size;
-		}
 	};
 	
-	GoggleRenderPass.prototype.cleanup = function(args, ctx, goo) {
-		// Make sure to cleanup everything we do, so nothing lingers in the engine
-		var renderSystem = ctx.world.getSystem('RenderSystem');
-		if (ctx.composer) {
-			// If we created a post effect chain, remove it
-			goo.ArrayUtil.remove(renderSystem.composers, ctx.composer);
-		} else {
-			// Otherwise, remove the post effect and put back the outpass
-			var composer = renderSystem.composers[0];
-			goo.ArrayUtil.remove(composer.passes, this);
-			composer.passes.unshift(ctx.renderPass);
-		}
+	GoggleRenderPass.prototype.destroy = function(renderer) {
+		this.leftTarget.destroy(renderer.context);
+		this.rightTarget.destroy(renderer.context);
 	};
 
 	GoggleRenderPass.prototype.updateSize = function(size) {

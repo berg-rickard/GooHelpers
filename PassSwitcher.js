@@ -6,7 +6,7 @@
 	
 	var PassSwitcher = {
 		switchPass: function(pass, ctx, goo) {
-			var addedPass = pass;
+			addedPass = pass;
 			var renderSystem = ctx.world.getSystem('RenderSystem');
 			// Get or create composer
 			var composer
@@ -23,7 +23,7 @@
 			composer.passes.unshift(pass);
 			if (composer.size) {
 				if (pass.updateSize instanceof Function) {
-					pass.updateSize(composer.size);
+					pass.updateSize(composer.size, ctx.world.gooRunner.renderer);
 				}
 				pass.viewportSize = composer.size;
 			}
