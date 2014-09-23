@@ -24,7 +24,7 @@
 				d[5] = sh * sp + ch * cp * sy;
 				d[8] = cy * ch;
 			}
-		}
+		},
 		Vector3: {
 			clamp: function(start, end) {
 				var td = this.data;
