@@ -33,6 +33,7 @@
 				td[0] = Math.max(Math.min(td[0], ed[0]), sd[0]);
 				td[1] = Math.max(Math.min(td[1], ed[1]), sd[1]);
 				td[2] = Math.max(Math.min(td[2], ed[2]), sd[2]);
+				return this;
 			}
 		}
 	}
