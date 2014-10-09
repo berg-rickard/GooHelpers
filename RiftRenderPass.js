@@ -12,13 +12,16 @@
 		this.needsSwap = true;
 		this.eyeOffset = 0.4;
 		this.fov = 100;
+		this.width = null;
+		this.height = null;
+		this._dc = 1.8; // Distortion compensation scale
 
 		
 		// Create composit
 		this.material = new goo.Material('Composit material', riftShader);
 		
 		// Create eye targets
-		this.updateSize({ width: 16, height: 9});
+		this.updateSize({ width: ctx.viewportWidth, height: ctx.viewportHeight});
 		this.offsetVector = new goo.Vector3();
 
 		
@@ -62,7 +65,8 @@
 		uniforms.scale = [
 			1 / distScale,
 			1 / distScale
-		]
+		];
+		this.updateSize({ width: config.hResolution, height: config.vResolution })
 	}
 	
 
@@ -72,11 +76,16 @@
 			size.width * 0.5 / size.height,
 			1
 		];
-		if (!this.leftTarget) {
-			var size = 1024;
-			this.leftTarget = new this.goo.RenderTarget(size, size);
-			this.rightTarget = new this.goo.RenderTarget(size, size);
+		if (this.width === size.width && this.height === size.height) { return; }
+		this.width = size.width;
+		this.height = size.height;
+		if (this.leftTarget) {
+			this.leftTarget.destroy()
+			this.rightTarget.destroy()
 		}
+		// size = { width: 2048, height: 2048 };
+		this.leftTarget = new this.goo.RenderTarget(size.width * 0.5 * this._dc, size.height * this._dc);
+		this.rightTarget = new this.goo.RenderTarget(size.width * 0.5 * this._dc, size.height * this._dc);
 	};
 
 	RiftRenderPass.prototype.render = function (
