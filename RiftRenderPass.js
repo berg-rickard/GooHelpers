@@ -80,8 +80,8 @@
 		this.width = size.width;
 		this.height = size.height;
 		if (this.leftTarget) {
-			this.leftTarget.destroy()
-			this.rightTarget.destroy()
+			this.leftTarget.destroy(renderer.context)
+			this.rightTarget.destroy(renderer.context)
 		}
 		// size = { width: 2048, height: 2048 };
 		this.leftTarget = new this.goo.RenderTarget(size.width * 0.5 * this._dc, size.height * this._dc);
