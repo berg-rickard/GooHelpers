@@ -89,16 +89,14 @@
 	function addListeners() {
 		// Due to some chrome bug, we need to wait a while to add the listeners
 		setTimeout(function() {
-			var inputs = MidiAccess.inputs();
-			for (var i = 0; i < inputs.length; i++) {
-				inputs[i].addEventListener('midimessage', onMidi);
+			for (var input of MidiAccess.inputs.values()) {
+				input.addEventListener('midimessage', onMidi);
 			}
 		}, 50);
 	}
 	function removeListeners() {
-		var inputs = MidiAccess.inputs();
-		for (var i = 0; i < inputs.length; i++) {
-			inputs[i].removeEventListener('midimessage', onMidi);
+		for (var input of MidiAccess.inputs.values()) {
+			input.removeEventListener('midimessage', onMidi);
 		}
 	}
 
@@ -252,9 +250,8 @@
 		if (!MidiAccess) { return; }
 		var timeStamp = (delay || 0) + performance.now();
 		var bytes = setData(data, channels.indexOf(this));
-		var outputs = MidiAccess.outputs();
-		for (var i = 0; i < outputs.length; i++) {
-			outputs[i].send(bytes, timeStamp);
+		for (var output of MidiAccess.outputs.values()) {
+			output.send(bytes, timeStamp);
 		}
 	};
 	Channel.prototype._emit = function (data) {
