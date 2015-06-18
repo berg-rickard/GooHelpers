@@ -92,6 +92,7 @@
 			var inputs = MidiAccess.inputs.values();
 			var input = inputs.next();
 			while(input.value) {
+				input.value.open();
 				input.value.addEventListener('midimessage', onMidi);
 				input = inputs.next();
 			}
